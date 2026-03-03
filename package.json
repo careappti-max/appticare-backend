@@ -1,0 +1,37 @@
+{
+  "name": "appticare-backend",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "dental",
+    "clinic",
+    "saas",
+    "whatsapp",
+    "reminders"
+  ],
+  "author": "ApptiCare",
+  "license": "ISC",
+  "description": "ApptiCare - Dental Clinic SaaS Backend API",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.98.0",
+    "axios": "^1.13.6",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.1",
+    "node-cron": "^4.2.1",
+    "pg": "^8.19.0",
+    "uuid": "^13.0.0"
+  }
+}
