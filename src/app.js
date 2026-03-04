@@ -45,11 +45,22 @@ app.use(
       // Allow requests with no origin (mobile apps, curl, etc.)
       if (!origin) return callback(null, true);
 
+      // Allow configured origins
       if (config.allowedOrigins.includes(origin) || config.nodeEnv === 'development') {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
+        return callback(null, true);
       }
+
+      // Allow devinapps.com subdomains (deployed frontends)
+      if (origin.match(/^https:\/\/.*\.devinapps\.com$/)) {
+        return callback(null, true);
+      }
+
+      // Allow Bubble.io subdomains
+      if (origin.match(/^https:\/\/.*\.bubbleapps\.io$/) || origin.match(/^https:\/\/.*\.bubble\.io$/)) {
+        return callback(null, true);
+      }
+
+      callback(new Error('Not allowed by CORS'));
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
