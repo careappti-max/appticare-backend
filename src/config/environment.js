@@ -21,7 +21,14 @@ const config = {
     expiresIn: process.env.JWT_EXPIRES_IN || '24h',
   },
 
-  // WhatsApp Cloud API
+  // Twilio WhatsApp
+  twilio: {
+    accountSid: process.env.TWILIO_ACCOUNT_SID,
+    authToken: process.env.TWILIO_AUTH_TOKEN,
+    whatsappNumber: process.env.TWILIO_WHATSAPP_NUMBER, // e.g. 'whatsapp:+14155238886'
+  },
+
+  // Legacy WhatsApp Cloud API (kept for backward compatibility)
   whatsapp: {
     apiUrl: process.env.WHATSAPP_API_URL || 'https://graph.facebook.com/v18.0',
     phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
