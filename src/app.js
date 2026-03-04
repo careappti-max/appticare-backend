@@ -50,13 +50,18 @@ app.use(
         return callback(null, true);
       }
 
+      // Allow appticare.com and appticare.netlify.app
+      if (origin === 'https://appticare.com' || origin === 'http://appticare.com' || origin === 'https://www.appticare.com' || origin === 'https://appticare.netlify.app') {
+        return callback(null, true);
+      }
+
       // Allow devinapps.com subdomains (deployed frontends)
       if (origin.match(/^https:\/\/.*\.devinapps\.com$/)) {
         return callback(null, true);
       }
 
-      // Allow Bubble.io subdomains
-      if (origin.match(/^https:\/\/.*\.bubbleapps\.io$/) || origin.match(/^https:\/\/.*\.bubble\.io$/)) {
+      // Allow Bubble.io subdomains and Netlify subdomains
+      if (origin.match(/^https:\/\/.*\.bubbleapps\.io$/) || origin.match(/^https:\/\/.*\.bubble\.io$/) || origin.match(/^https:\/\/.*\.netlify\.app$/)) {
         return callback(null, true);
       }
 
