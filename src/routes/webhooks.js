@@ -8,29 +8,33 @@ const router = express.Router();
 
 /**
  * GET /webhooks/whatsapp
- * WhatsApp webhook verification (Meta requires this)
+ * WhatsApp webhook verification
+ * Supports both Meta (hub.verify_token) and Twilio (simple GET health check)
  */
 router.get('/whatsapp', (req, res) => {
+  // Meta verification flow
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
   if (mode === 'subscribe' && token === config.whatsapp.verifyToken) {
-    console.log('WhatsApp webhook verified');
+    console.log('WhatsApp webhook verified (Meta)');
     return res.status(200).send(challenge);
   }
 
-  return res.status(403).json({ error: 'Forbidden', message: 'Verification failed' });
+  // Twilio / general health check
+  return res.status(200).json({ status: 'ok', provider: 'twilio' });
 });
 
 /**
  * POST /webhooks/whatsapp
  * Receive incoming WhatsApp messages (replies to reminders)
+ * Supports Twilio format (form-encoded: Body, From, To, MessageSid, ProfileName)
  */
 router.post('/whatsapp', async (req, res) => {
   try {
-    // Always respond 200 quickly to Meta
-    res.status(200).json({ status: 'received' });
+    // Respond 200 quickly (required by both Meta and Twilio)
+    res.status(200).type('text/xml').send('<Response></Response>');
 
     const parsed = whatsappService.parseIncomingMessage(req.body);
     if (!parsed) return;
