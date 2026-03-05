@@ -21,20 +21,16 @@ const config = {
     expiresIn: process.env.JWT_EXPIRES_IN || '24h',
   },
 
-  // Twilio WhatsApp
-  twilio: {
-    accountSid: process.env.TWILIO_ACCOUNT_SID,
-    authToken: process.env.TWILIO_AUTH_TOKEN,
-    whatsappNumber: process.env.TWILIO_WHATSAPP_NUMBER, // e.g. 'whatsapp:+14155238886'
+  // Green API WhatsApp
+  greenApi: {
+    apiUrl: process.env.GREEN_API_URL || 'https://7103.api.greenapi.com',
+    idInstance: process.env.GREEN_API_ID_INSTANCE,
+    apiTokenInstance: process.env.GREEN_API_TOKEN_INSTANCE,
   },
 
-  // Legacy WhatsApp Cloud API (kept for backward compatibility)
+  // Legacy WhatsApp config (kept for webhook verify token)
   whatsapp: {
-    apiUrl: process.env.WHATSAPP_API_URL || 'https://graph.facebook.com/v18.0',
-    phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
-    accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
     verifyToken: process.env.WHATSAPP_VERIFY_TOKEN,
-    businessAccountId: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID,
   },
 
   // Moyasar
