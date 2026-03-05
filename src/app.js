@@ -13,6 +13,7 @@ const reminderRoutes = require('./routes/reminders');
 const webhookRoutes = require('./routes/webhooks');
 const analyticsRoutes = require('./routes/analytics');
 const billingRoutes = require('./routes/billing');
+const adminRoutes = require('./routes/admin');
 
 // Import scheduler
 const scheduler = require('./jobs/scheduler');
@@ -137,6 +138,9 @@ app.use('/api/appointments', apiLimiter, appointmentRoutes);
 app.use('/api/reminders', apiLimiter, reminderRoutes);
 app.use('/api/analytics', apiLimiter, analyticsRoutes);
 app.use('/api/billing', apiLimiter, billingRoutes);
+// Admin routes use authLimiter for login brute-force protection
+app.use('/api/admin/login', authLimiter);
+app.use('/api/admin', apiLimiter, adminRoutes);
 
 // Legacy endpoint alias
 app.post('/api/sendReminder', apiLimiter, require('./middleware/auth').authenticate, require('./middleware/auth').requireActiveSubscription, async (req, res) => {
