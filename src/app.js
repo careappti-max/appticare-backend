@@ -138,6 +138,8 @@ app.use('/api/appointments', apiLimiter, appointmentRoutes);
 app.use('/api/reminders', apiLimiter, reminderRoutes);
 app.use('/api/analytics', apiLimiter, analyticsRoutes);
 app.use('/api/billing', apiLimiter, billingRoutes);
+// Admin routes use authLimiter for login brute-force protection
+app.use('/api/admin/login', authLimiter);
 app.use('/api/admin', apiLimiter, adminRoutes);
 
 // Legacy endpoint alias

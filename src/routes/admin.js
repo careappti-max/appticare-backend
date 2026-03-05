@@ -116,7 +116,11 @@ router.get('/clinics', async (req, res) => {
     }
 
     if (search) {
-      query = query.or(`clinic_name.ilike.%${search}%,email.ilike.%${search}%`);
+      // Sanitize search input to prevent injection into PostgREST filter
+      const sanitized = search.replace(/[^a-zA-Z0-9@.\-_ ]/g, '');
+      if (sanitized) {
+        query = query.or(`clinic_name.ilike.%${sanitized}%,email.ilike.%${sanitized}%`);
+      }
     }
 
     const { data: clinics, error, count } = await query;
@@ -250,10 +254,12 @@ router.put('/clinics/:clinicId/status', async (req, res) => {
     if (subscription_status) updateData.subscription_status = subscription_status;
     if (typeof is_active === 'boolean') updateData.is_active = is_active;
 
+    // Update only the admin user for this clinic (not staff/viewer users)
     const { data, error } = await supabaseAdmin
       .from('users')
       .update(updateData)
       .eq('clinic_id', clinicId)
+      .eq('role', 'admin')
       .select('id, clinic_name, subscription_status, is_active')
       .single();
 
