@@ -23,7 +23,7 @@ const config = {
 
   // Green API WhatsApp
   greenApi: {
-    apiUrl: process.env.GREEN_API_URL || 'https://7103.api.greenapi.com',
+    apiUrl: process.env.GREEN_API_URL,
     idInstance: process.env.GREEN_API_ID_INSTANCE,
     apiTokenInstance: process.env.GREEN_API_TOKEN_INSTANCE,
   },

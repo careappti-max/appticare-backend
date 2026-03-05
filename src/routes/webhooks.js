@@ -42,7 +42,7 @@ router.post('/whatsapp', async (req, res) => {
     console.log(`[WhatsApp] Incoming message from ${parsed.from}: action=${parsed.action}`);
 
     // Mark message as read
-    await whatsappService.markAsRead(parsed.messageId);
+    await whatsappService.markAsRead(parsed.chatId, parsed.messageId);
 
     // Find the patient by phone number to determine clinic
     const formattedPhone = whatsappService.formatPhoneNumber(parsed.from);
