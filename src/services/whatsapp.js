@@ -1,31 +1,38 @@
+const axios = require('axios');
 const config = require('../config/environment');
 
 class WhatsAppService {
   constructor() {
-    this.client = null;
-    this.fromNumber = null;
     this._initialized = false;
+    this._client = null;
   }
 
   /**
-   * Lazy-initialize Twilio client (only when credentials are available)
+   * Lazy-initialize Green API client (only when credentials are available)
    */
   _ensureClient() {
-    if (this._initialized) return !!this.client;
+    if (this._initialized) return !!this._client;
 
-    const { accountSid, authToken, whatsappNumber } = config.twilio || {};
+    const { apiUrl, idInstance, apiTokenInstance } = config.greenApi || {};
 
-    if (accountSid && authToken) {
-      const twilio = require('twilio');
-      this.client = twilio(accountSid, authToken);
-      this.fromNumber = whatsappNumber || 'whatsapp:+14155238886'; // Twilio sandbox default
+    if (apiUrl && idInstance && apiTokenInstance) {
+      this._client = { apiUrl, idInstance, apiTokenInstance };
       this._initialized = true;
+      console.log('[WhatsApp] Green API initialized successfully');
       return true;
     }
 
     this._initialized = true;
-    console.warn('[WhatsApp] Twilio credentials not configured. WhatsApp messaging disabled.');
+    console.warn('[WhatsApp] Green API credentials not configured. WhatsApp messaging disabled.');
     return false;
+  }
+
+  /**
+   * Build the Green API endpoint URL
+   */
+  _buildUrl(method) {
+    const { apiUrl, idInstance, apiTokenInstance } = this._client;
+    return `${apiUrl}/waInstance${idInstance}/${method}/${apiTokenInstance}`;
   }
 
   /**
@@ -45,7 +52,7 @@ class WhatsAppService {
       reminderType
     );
 
-    // Add reply instructions (text-based for Twilio compatibility)
+    // Add reply instructions
     const fullMessage =
       messageBody +
       '\n\n' +
@@ -53,23 +60,28 @@ class WhatsAppService {
       'أرسل *1* للتأكيد | أرسل *2* لإعادة الجدولة';
 
     try {
-      const message = await this.client.messages.create({
-        from: this.fromNumber,
-        to: `whatsapp:${formattedPhone}`,
-        body: fullMessage,
+      // Green API uses phone@c.us format (without + prefix)
+      const chatId = formattedPhone.replace('+', '') + '@c.us';
+
+      const response = await axios.post(this._buildUrl('sendMessage'), {
+        chatId,
+        message: fullMessage,
+      }, {
+        timeout: 15000,
+        headers: { 'Content-Type': 'application/json' },
       });
 
       return {
         success: true,
-        messageId: message.sid,
+        messageId: response.data.idMessage,
         whatsappId: formattedPhone,
       };
     } catch (error) {
       console.error('WhatsApp send error:', error.message);
       return {
         success: false,
-        error: error.message,
-        errorCode: error.code,
+        error: error.response?.data?.message || error.message,
+        errorCode: error.response?.status,
       };
     }
   }
@@ -85,30 +97,47 @@ class WhatsAppService {
     const formattedPhone = this.formatPhoneNumber(phoneNumber);
 
     try {
-      const message = await this.client.messages.create({
-        from: this.fromNumber,
-        to: `whatsapp:${formattedPhone}`,
-        body: text,
+      const chatId = formattedPhone.replace('+', '') + '@c.us';
+
+      const response = await axios.post(this._buildUrl('sendMessage'), {
+        chatId,
+        message: text,
+      }, {
+        timeout: 15000,
+        headers: { 'Content-Type': 'application/json' },
       });
 
       return {
         success: true,
-        messageId: message.sid,
+        messageId: response.data.idMessage,
       };
     } catch (error) {
       console.error('WhatsApp text send error:', error.message);
       return {
         success: false,
-        error: error.message,
+        error: error.response?.data?.message || error.message,
       };
     }
   }
 
   /**
-   * Mark a message as read (no-op for Twilio — handled automatically)
+   * Mark a message as read via Green API
    */
-  async markAsRead(messageId) {
-    return { success: true };
+  async markAsRead(chatId, messageId) {
+    if (!this._ensureClient()) return { success: true };
+
+    try {
+      await axios.post(this._buildUrl('readChat'), {
+        chatId,
+      }, {
+        timeout: 10000,
+        headers: { 'Content-Type': 'application/json' },
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('WhatsApp markAsRead error:', error.message);
+      return { success: false };
+    }
   }
 
   /**
@@ -141,6 +170,8 @@ class WhatsAppService {
       cleaned = '+966' + cleaned.substring(1);
     } else if (cleaned.startsWith('5') && cleaned.length === 9) {
       cleaned = '+966' + cleaned;
+    } else if (cleaned.startsWith('00966')) {
+      cleaned = '+' + cleaned.substring(2);
     } else if (cleaned.startsWith('966')) {
       cleaned = '+' + cleaned;
     } else if (!cleaned.startsWith('+')) {
@@ -151,32 +182,63 @@ class WhatsAppService {
   }
 
   /**
-   * Parse incoming Twilio WhatsApp webhook payload
-   * Twilio sends form-encoded data with Body, From, To, MessageSid, etc.
+   * Parse incoming Green API webhook payload
+   * Green API sends JSON with typeWebhook, senderData, messageData, etc.
+   * Also supports legacy Twilio format for backward compatibility.
    */
   parseIncomingMessage(body) {
     try {
-      if (!body || !body.Body) {
-        return null;
+      // Handle Green API webhook format
+      if (body.typeWebhook === 'incomingMessageReceived') {
+        const senderData = body.senderData || {};
+        const messageData = body.messageData || {};
+        const textMessage = messageData.textMessageData || messageData.extendedTextMessageData;
+
+        if (!textMessage) return null;
+
+        const text = textMessage.textMessage || textMessage.text || '';
+
+        const result = {
+          messageId: body.idMessage,
+          from: senderData.chatId ? senderData.chatId.replace('@c.us', '') : null,
+          timestamp: body.timestamp ? new Date(body.timestamp * 1000).toISOString() : new Date().toISOString(),
+          contactName: senderData.senderName || null,
+          type: 'text',
+          text: text.trim(),
+          chatId: senderData.chatId || null,
+        };
+
+        // Parse reply actions: 1 = confirm, 2 = reschedule
+        if (result.text === '1') {
+          result.action = 'confirmed';
+        } else if (result.text === '2') {
+          result.action = 'reschedule_requested';
+        }
+
+        return result;
       }
 
-      const result = {
-        messageId: body.MessageSid || body.SmsSid,
-        from: body.From ? body.From.replace('whatsapp:', '') : null,
-        timestamp: new Date().toISOString(),
-        contactName: body.ProfileName || null,
-        type: 'text',
-        text: body.Body ? body.Body.trim() : null,
-      };
+      // Handle legacy Twilio format (form-encoded: Body, From, MessageSid)
+      if (body.Body !== undefined) {
+        const result = {
+          messageId: body.MessageSid || body.SmsSid,
+          from: body.From ? body.From.replace('whatsapp:', '') : null,
+          timestamp: new Date().toISOString(),
+          contactName: body.ProfileName || null,
+          type: 'text',
+          text: body.Body ? body.Body.trim() : null,
+        };
 
-      // Parse reply actions: 1 = confirm, 2 = reschedule
-      if (result.text === '1') {
-        result.action = 'confirmed';
-      } else if (result.text === '2') {
-        result.action = 'reschedule_requested';
+        if (result.text === '1') {
+          result.action = 'confirmed';
+        } else if (result.text === '2') {
+          result.action = 'reschedule_requested';
+        }
+
+        return result;
       }
 
-      return result;
+      return null;
     } catch (error) {
       console.error('Error parsing WhatsApp message:', error);
       return null;
@@ -184,22 +246,10 @@ class WhatsAppService {
   }
 
   /**
-   * Validate Twilio webhook signature for security
+   * Validate webhook signature (Green API uses instance-specific URLs, no signature needed)
    */
   validateWebhookSignature(req) {
-    if (!this._ensureClient()) return true;
-
-    try {
-      const twilio = require('twilio');
-      const authToken = config.twilio.authToken;
-      const twilioSignature = req.headers['x-twilio-signature'];
-      const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
-
-      return twilio.validateRequest(authToken, twilioSignature, url, req.body);
-    } catch (error) {
-      console.error('Twilio signature validation error:', error.message);
-      return false;
-    }
+    return true;
   }
 }
 

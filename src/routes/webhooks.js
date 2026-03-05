@@ -9,7 +9,7 @@ const router = express.Router();
 /**
  * GET /webhooks/whatsapp
  * WhatsApp webhook verification
- * Supports both Meta (hub.verify_token) and Twilio (simple GET health check)
+ * Supports Meta (hub.verify_token) and general health check
  */
 router.get('/whatsapp', (req, res) => {
   // Meta verification flow
@@ -22,19 +22,19 @@ router.get('/whatsapp', (req, res) => {
     return res.status(200).send(challenge);
   }
 
-  // Twilio / general health check
-  return res.status(200).json({ status: 'ok', provider: 'twilio' });
+  // General health check
+  return res.status(200).json({ status: 'ok', provider: 'green-api' });
 });
 
 /**
  * POST /webhooks/whatsapp
  * Receive incoming WhatsApp messages (replies to reminders)
- * Supports Twilio format (form-encoded: Body, From, To, MessageSid, ProfileName)
+ * Supports Green API format (JSON) and legacy Twilio format
  */
 router.post('/whatsapp', async (req, res) => {
   try {
-    // Respond 200 quickly (required by both Meta and Twilio)
-    res.status(200).type('text/xml').send('<Response></Response>');
+    // Respond 200 quickly (required by webhook providers)
+    res.status(200).json({ status: 'ok' });
 
     const parsed = whatsappService.parseIncomingMessage(req.body);
     if (!parsed) return;
@@ -42,7 +42,7 @@ router.post('/whatsapp', async (req, res) => {
     console.log(`[WhatsApp] Incoming message from ${parsed.from}: action=${parsed.action}`);
 
     // Mark message as read
-    await whatsappService.markAsRead(parsed.messageId);
+    await whatsappService.markAsRead(parsed.chatId, parsed.messageId);
 
     // Find the patient by phone number to determine clinic
     const formattedPhone = whatsappService.formatPhoneNumber(parsed.from);
