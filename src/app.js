@@ -51,8 +51,8 @@ app.use(
         return callback(null, true);
       }
 
-      // Allow appticare.com and appticare.netlify.app
-      if (origin === 'https://appticare.com' || origin === 'http://appticare.com' || origin === 'https://www.appticare.com' || origin === 'https://appticare.netlify.app') {
+      // Allow appticare.com, admin.appticare.com and appticare.netlify.app
+      if (origin === 'https://appticare.com' || origin === 'http://appticare.com' || origin === 'https://www.appticare.com' || origin === 'https://admin.appticare.com' || origin === 'https://appticare.netlify.app' || origin === 'https://appticare-admin.netlify.app') {
         return callback(null, true);
       }
 
